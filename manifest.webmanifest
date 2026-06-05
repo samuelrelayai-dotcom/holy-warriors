@@ -1,0 +1,16 @@
+{
+  "name": "Holy Warriors — Discipleship Tracker",
+  "short_name": "Holy Warriors",
+  "description": "Discipleship team tracker for the Holy Warriors / THE WAY ministry.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0b0c",
+  "theme_color": "#dc2626",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
