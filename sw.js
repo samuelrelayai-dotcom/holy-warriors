@@ -1,5 +1,5 @@
 // Holy Warriors service worker — installable PWA + offline app shell.
-const CACHE = "hw-shell-v1";
+const CACHE = "hw-shell-v2";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -39,5 +39,17 @@ self.addEventListener("fetch", (e) => {
       caches.open(CACHE).then((c) => c.put(req, copy));
       return res;
     }).catch(() => hit))
+  );
+});
+
+// Focus (or open) the app when a notification is tapped.
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cls) => {
+      for (const c of cls) { if ("focus" in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    })
   );
 });
