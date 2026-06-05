@@ -1,5 +1,5 @@
 // Holy Warriors service worker — installable PWA + offline app shell.
-const CACHE = "hw-shell-v2";
+const CACHE = "hw-shell-v3";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -52,4 +52,15 @@ self.addEventListener("notificationclick", (e) => {
       if (self.clients.openWindow) return self.clients.openWindow(url);
     })
   );
+});
+
+// Web Push: show a notification even when the app/browser is closed.
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { title: "Holy Warriors", body: e.data ? e.data.text() : "" }; }
+  const title = d.title || "Holy Warriors";
+  e.waitUntil(self.registration.showNotification(title, {
+    body: d.body || "", icon: "/icon-192.png", badge: "/icon-192.png",
+    data: { url: d.url || "/" }, tag: d.tag,
+  }));
 });
