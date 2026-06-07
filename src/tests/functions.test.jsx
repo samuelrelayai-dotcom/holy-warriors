@@ -106,7 +106,7 @@ describe("VOLUNTEERS", () => {
     const classSel = screen.getAllByRole("combobox").find((el) => Array.from(el.options).some((o) => o.value === "HW1"));
     fireEvent.change(classSel, { target: { value: "HW1" } });
     fireEvent.click(await screen.findByRole("button", { name: /^Joy$/ }));
-    expect(await screen.findByText(/Assigned students \(1\)/i)).toBeInTheDocument();
+    expect(await screen.findByText(/assigned to this coach \(1\)/i)).toBeInTheDocument();
   });
 });
 
@@ -255,6 +255,7 @@ describe("ROSTER", () => {
     fireEvent.change(await screen.findByPlaceholderText(/First name/i), { target: { value: "Coach Rivera" } });
     await screen.findByDisplayValue("Coach Rivera");
     fireEvent.blur(screen.getByDisplayValue("Coach Rivera"));
+    fireEvent.click(screen.getByRole("button", { name: "1" })); // confirm Rivera to serve HW1
     // add + enroll a student in HW1
     tab("Student Journey");
     fireEvent.click(await screen.findByRole("button", { name: /Add student/i }));
