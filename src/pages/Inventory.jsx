@@ -33,19 +33,29 @@ export default function Inventory({ state, upsertInventory, patchStudent, toast 
   });
 
   return (
-    <div className="space-y-5">
-      {/* Summary */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="p-4"><div className="text-3xl font-bold text-[#047857]">{money(collected)}</div><div className="text-xs text-gray-500 mt-1 uppercase tracking-wide">Collected</div><div className="text-[11px] text-gray-400">{paidCount} paid</div></Card>
-        <Card className="p-4"><div className="text-3xl font-bold text-[#dc2626]">{money(owed)}</div><div className="text-xs text-gray-500 mt-1 uppercase tracking-wide">Outstanding</div><div className="text-[11px] text-gray-400">{oweCount} owe</div></Card>
-        <Card className="p-4"><div className="text-3xl font-bold text-gray-900">{money(collected + owed)}</div><div className="text-xs text-gray-500 mt-1 uppercase tracking-wide">Expected total</div></Card>
-        <Card className="p-4"><div className="text-3xl font-bold text-gray-900">{paidCount + oweCount}</div><div className="text-xs text-gray-500 mt-1 uppercase tracking-wide">Books needed</div></Card>
-      </div>
+    <div className="space-y-3">
+      {/* Compact summary strip */}
+      <Card className="p-3 flex items-center justify-between gap-4">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold text-[#047857]">{money(collected)}</span>
+          <span className="text-[11px] text-gray-500">collected ({paidCount})</span>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold text-[#dc2626]">{money(owed)}</span>
+          <span className="text-[11px] text-gray-500">owed ({oweCount})</span>
+        </div>
+        <div className="hidden sm:flex items-baseline gap-1.5">
+          <span className="text-2xl font-bold text-gray-900">{money(collected + owed)}</span>
+          <span className="text-[11px] text-gray-500">expected</span>
+        </div>
+      </Card>
 
       {/* Payments — collapsible per class */}
       <div>
-        <h3 className="font-semibold text-gray-800 mb-1">Book payments</h3>
-        <p className="text-sm text-gray-500 mb-3">Tap a class to expand. Flip each student's switch to Paid. (HW1 &amp; HW2 $20, HW3 $25.)</p>
+        <div className="flex items-baseline justify-between mb-2">
+          <h3 className="font-semibold text-gray-800">Book payments</h3>
+          <span className="text-[11px] text-gray-400">tap a class · HW1/HW2 $20 · HW3 $25</span>
+        </div>
         <div className="space-y-2">
           {perClass.map(({ c, price, students, paidN, oweN, oweAmt }) => {
             const isOpen = !!open[c.id];
