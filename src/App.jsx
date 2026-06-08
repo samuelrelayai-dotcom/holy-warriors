@@ -201,7 +201,7 @@ function Authed({ signOut, cloud, role, profile, onReplay }) {
     dashboard: <Dashboard state={scoped} goto={setTab} round={currentRound} role={role} campus={campus} onOpenRounds={() => setShowRounds(true)} />,
     volunteers: <Volunteers {...data} state={roundState} roundId={currentRoundId} toast={toast} />,
     journey: <Journey {...data} state={roundState} roundId={currentRoundId} toast={toast} />,
-    attendance: <Attendance {...data} state={scoped} toast={toast} />,
+    attendance: <Attendance {...data} state={scoped} roundId={currentRoundId} toast={toast} />,
     roster: <Roster {...data} state={scoped} roundId={currentRoundId} readOnly={!canManageData} toast={toast} />,
     inventory: <Inventory {...data} state={roundState} toast={toast} />,
     training: <Training {...data} canEditSteps={can(role, "manageRoundsTraining")} />,
