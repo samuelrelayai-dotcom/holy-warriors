@@ -1,5 +1,5 @@
 // Holy Warriors service worker — installable PWA + offline app shell.
-const CACHE = "hw-shell-v4";
+const CACHE = "hw-shell-v5";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -23,7 +23,7 @@ self.addEventListener("fetch", (e) => {
   // Navigations: network-first, fall back to cached shell when offline.
   if (req.mode === "navigate") {
     e.respondWith(
-      fetch(req).then((res) => {
+      fetch(req, { cache: "no-store" }).then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put("/index.html", copy));
         return res;
