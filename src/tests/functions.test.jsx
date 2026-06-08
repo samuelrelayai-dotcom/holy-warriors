@@ -288,6 +288,28 @@ describe("ROSTER", () => {
     fireEvent.click(screen.getByRole("button", { name: /Re-activate/i }));
     await waitFor(() => expect(screen.queryByText("DROPPED")).not.toBeInTheDocument());
   });
+
+  it("add a student manually from the roster", async () => {
+    renderApp(); await signIn(); tab("Roster");
+    const input = await screen.findByPlaceholderText(/Add a student to/i);
+    fireEvent.change(input, { target: { value: "Manual Mike" } });
+    fireEvent.click(screen.getByRole("button", { name: /\+ Add student/i }));
+    expect(await screen.findByText("Manual Mike")).toBeInTheDocument();
+  });
+
+  it("delete a student from the roster", async () => {
+    const orig = window.confirm; window.confirm = () => true;
+    try {
+      renderApp(); await signIn(); tab("Roster");
+      const input = await screen.findByPlaceholderText(/Add a student to/i);
+      fireEvent.change(input, { target: { value: "Temp Tess" } });
+      fireEvent.click(screen.getByRole("button", { name: /\+ Add student/i }));
+      expect(await screen.findByText("Temp Tess")).toBeInTheDocument();
+      const dels = screen.getAllByTitle("Delete student");
+      fireEvent.click(dels[dels.length - 1]);
+      await waitFor(() => expect(screen.queryByText("Temp Tess")).not.toBeInTheDocument());
+    } finally { window.confirm = orig; }
+  });
 });
 
 describe("ROLES / TEAM / ACCOUNT (demo = director)", () => {
@@ -465,7 +487,7 @@ describe("FULL BUTTON COVERAGE (demo = director)", () => {
     const file = new File([JSON.stringify({ coaches: [{ id: "imp1", name: "Imported Coach" }] })], "b.json", { type: "application/json" });
     fireEvent.change(input, { target: { files: [file] } });
     tab("Volunteers");
-    expect(await screen.findByDisplayValue("Imported Coach")).toBeInTheDocument();
+    expect(await screen.findByText("Imported Coach")).toBeInTheDocument(); // shown as a collapsed row
   });
 });
 
