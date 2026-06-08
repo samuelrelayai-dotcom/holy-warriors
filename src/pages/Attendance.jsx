@@ -1,13 +1,14 @@
 import { useState } from "react";
-import { Card, Empty } from "../components/ui.jsx";
+import { Card, TextInput, Empty } from "../components/ui.jsx";
 import { COURSES, WEEKS, ATTENDANCE, ATT_CYCLE, courseById } from "../domain/courses.js";
 import { enrolledIn, presentCount } from "../domain/selectors.js";
+import { makeStudent } from "../domain/models.js";
 import { smsHref, mailtoHref } from "../domain/messaging.js";
 import { useIsMobile } from "../hooks/useIsMobile.js";
 
 const GROUPS = [["students", "Students"], ["coaches", "Coaches"], ["admins", "Admins"]];
 
-export default function Attendance({ state, patchStudent, patchCoach, patchAdmin, deleteStudent, upsertStudent, toast }) {
+export default function Attendance({ state, patchStudent, patchCoach, patchAdmin, deleteStudent, upsertStudent, roundId = null, toast }) {
   const isMobile = useIsMobile();
   const [course, setCourse] = useState("HW1");
   const [group, setGroup] = useState("students");
@@ -27,6 +28,15 @@ export default function Attendance({ state, patchStudent, patchCoach, patchAdmin
     if (typeof window !== "undefined" && window.confirm && !window.confirm(`Delete ${st.name || "this student"}? This permanently removes them from every class, the roster, and attendance.`)) return;
     deleteStudent?.(st.id);
     toast?.(`Deleted ${st.name || "student"}`, { kind: "danger", action: { label: "Undo", onClick: () => upsertStudent?.(st) } });
+  };
+  const [newName, setNewName] = useState("");
+  const addStudent = async () => {
+    const nm = newName.trim();
+    const st = makeStudent({ name: nm, roundId });
+    st.progress[course] = "in_progress"; // enroll in the currently-selected class
+    await upsertStudent?.(st);
+    setNewName("");
+    toast?.(nm ? `Added ${nm} to ${courseById(course)?.name || course}` : `Added a student to ${courseById(course)?.name || course}`);
   };
 
   return (
@@ -73,8 +83,16 @@ export default function Attendance({ state, patchStudent, patchCoach, patchAdmin
         );
       })()}
 
+      {group === "students" && upsertStudent && (
+        <div className="flex flex-wrap items-center gap-2">
+          <TextInput value={newName} onChange={setNewName} placeholder={`Add a student to ${courseById(course)?.name || course}…`} className="w-64"
+            onKeyDown={(e) => { if (e.key === "Enter") addStudent(); }} />
+          <button onClick={addStudent} className="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold">+ Add student</button>
+        </div>
+      )}
+
       {people.length === 0 ? (
-        <Empty icon="🗓️" title={`No ${group} to track here`} sub={group === "students" ? "Set a student to In progress on the Journey tab." : `Add ${group} on the ${group} tab.`} />
+        <Empty icon="🗓️" title={`No ${group} to track here`} sub={group === "students" ? "Add a student above, or set one to In progress on the Journey tab." : `Add ${group} on the ${group} tab.`} />
       ) : (
         isMobile ? (
           <div className="space-y-3">
