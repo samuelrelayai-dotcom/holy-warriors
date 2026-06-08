@@ -11,18 +11,40 @@ const TYPES = [
   { id: "admin", label: "Admins" },
 ];
 
-// One unified card for a coach or an admin.
-function VolunteerCard({ v, type, students, set, onDelete, assignedTo, otherLabel, toggleStudent, flash }) {
+// One unified card for a coach or an admin — collapsible.
+function VolunteerCard({ v, type, students, set, onDelete, assignedTo, otherLabel, toggleStudent, flash, expanded, onToggle }) {
   const ref = useRef(null);
   useEffect(() => { if (flash && ref.current && typeof ref.current.scrollIntoView === "function") ref.current.scrollIntoView({ behavior: "smooth", block: "center" }); }, [flash]);
   const isCoach = type === "coach";
-  const badge = isCoach
-    ? { label: "Coach", bg: "#dc2626" }
-    : { label: "Admin", bg: "#111827" };
+  const badge = isCoach ? { label: "Coach", bg: "#dc2626" } : { label: "Admin", bg: "#111827" };
   const assignedCount = students.filter((s) => assignedTo(s)).length;
+  const name = fullName(v) || (isCoach ? "Unnamed coach" : "Unnamed admin");
+  const classShort = v.classId ? (courseById(v.classId)?.short || v.classId) : null;
+
+  // --- Collapsed: one compact scannable row.
+  if (!expanded) {
+    return (
+      <Card ref={ref} className={`overflow-hidden transition ${flash ? "ring-2 ring-red-500" : ""}`}>
+        <button onClick={onToggle} className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-gray-50">
+          <span className="text-gray-400 text-xs">▸</span>
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white shrink-0" style={{ background: badge.bg }}>{badge.label}</span>
+          <span className="font-semibold text-gray-900 truncate">{name}</span>
+          {classShort
+            ? <span className="text-[11px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">{classShort}</span>
+            : <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200 shrink-0">no class</span>}
+          <div className="flex-1" />
+          {isCoach && classShort && <span className="text-[11px] text-gray-500 shrink-0">{assignedCount} student{assignedCount === 1 ? "" : "s"}</span>}
+          {v.phone && <span className="hidden sm:inline text-[11px] text-gray-400 shrink-0">{v.phone}</span>}
+        </button>
+      </Card>
+    );
+  }
+
+  // --- Expanded: full editor.
   return (
     <Card ref={ref} className={`p-4 space-y-3 transition ${flash ? "ring-2 ring-red-500" : ""}`}>
       <div className="flex flex-wrap items-center gap-2">
+        <button onClick={onToggle} title="Collapse" className="text-gray-400 text-xs px-1">▾</button>
         <span className="px-2 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: badge.bg }}>{badge.label}</span>
         <EditableField value={v.firstName} placeholder="First name" className="w-40" onCommit={(val) => set({ firstName: val, name: `${val} ${v.lastName || ""}`.trim() })} />
         <EditableField value={v.lastName} placeholder="Last name" className="w-40" onCommit={(val) => set({ lastName: val, name: `${v.firstName || ""} ${val}`.trim() })} />
@@ -118,21 +140,27 @@ export default function Volunteers({
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState("all");
+  const [openCards, setOpenCards] = useState({});
+  const toggleCard = (id) => setOpenCards((o) => ({ ...o, [id]: !o[id] }));
+  const expandAll = (on) => {
+    const ids = [...(state.coaches || []), ...(state.admins || [])].map((v) => v.id);
+    setOpenCards(on ? Object.fromEntries(ids.map((id) => [id, true])) : {});
+  };
 
-  // Round-scope: show volunteers in this round (legacy rows with no round stay visible).
   const inRound = (v) => roundId == null || v.roundId === roundId || !v.roundId;
   const match = (v) => fullName(v).toLowerCase().includes(q.toLowerCase()) || (v.email || "").toLowerCase().includes(q.toLowerCase());
+  // Newest first, so a freshly added card appears at the very top.
+  const newestFirst = (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
 
-  const coaches = (state.coaches || []).filter((v) => inRound(v) && match(v));
-  const admins = (state.admins || []).filter((v) => inRound(v) && match(v));
+  const coaches = (state.coaches || []).filter((v) => inRound(v) && match(v)).slice().sort(newestFirst);
+  const admins = (state.admins || []).filter((v) => inRound(v) && match(v)).slice().sort(newestFirst);
   const students = state.students || [];
-  // Students who signed up for a class (in progress / completed — not "not_started").
   const studentsForClass = (cid) => cid ? students.filter((s) => { const p = (s.progress || {})[cid]; return p && p !== "not_started" && !s.dropped?.[cid]; }) : [];
 
   const [justAdded, setJustAdded] = useState(null);
   const flashNew = (id) => { setJustAdded(id); setTimeout(() => setJustAdded((x) => (x === id ? null : x)), 2500); };
-  const addCoach = async () => { const c = makeCoach({ roundId }); await upsertCoach(c); setFilter("all"); setQ(""); flashNew(c.id); toast?.("Coach added — fill in their details"); };
-  const addAdmin = async () => { const a = makeAdmin({ roundId }); await upsertAdmin(a); setFilter("all"); setQ(""); flashNew(a.id); toast?.("Admin added — fill in their details"); };
+  const addCoach = async () => { const c = makeCoach({ roundId }); await upsertCoach(c); setFilter("all"); setQ(""); setOpenCards((o) => ({ ...o, [c.id]: true })); flashNew(c.id); toast?.("Coach added at the top — fill in their details"); };
+  const addAdmin = async () => { const a = makeAdmin({ roundId }); await upsertAdmin(a); setFilter("all"); setQ(""); setOpenCards((o) => ({ ...o, [a.id]: true })); flashNew(a.id); toast?.("Admin added at the top — fill in their details"); };
 
   const fileRef = useRef(null);
   const importCsv = (file) => {
@@ -168,7 +196,7 @@ export default function Volunteers({
     toast?.(`Removed ${fullName(a) || "admin"}`, { kind: "danger", action: { label: "Undo", onClick: () => upsertAdmin(a) } });
   };
 
-  // --- Coaches: assignment IS the roster (assignments[class].coachId) — same source as the Roster tab.
+  // Coaches: assignment IS the roster (assignments[class].coachId) — same source as the Roster tab.
   const coachAssignedTo = (coach) => (s) => (s.assignments?.[coach.classId]?.coachId || null) === coach.id;
   const coachOtherLabel = (coach) => (s) => {
     const id = s.assignments?.[coach.classId]?.coachId;
@@ -184,7 +212,7 @@ export default function Volunteers({
     if (!already) notifyCoach(coach.id, { title: "👤 New student assigned to you", body: s?.name || "A student", tag: "stu-" + sid });
   };
 
-  // --- Admins keep a simple oversight list (studentIds).
+  // Admins keep a simple oversight list (studentIds).
   const adminAssignedTo = (a) => (s) => (a.studentIds || []).includes(s.id);
   const adminToggle = (a, set) => (sid) => {
     const cur = a.studentIds || [];
@@ -216,23 +244,32 @@ export default function Volunteers({
         </div>
       </div>
 
-      <p className="text-xs text-gray-400">Set each coach's class, then tap the students who signed up for it to assign them. Assignments sync with the Roster tab.</p>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-400">Tap a row to expand and edit. New volunteers are added at the top. Assignments sync with the Roster tab.</p>
+        {total > 0 && (
+          <div className="flex gap-2 text-[11px] shrink-0">
+            <button onClick={() => expandAll(true)} className="font-semibold text-gray-500 hover:underline">Expand all</button>
+            <span className="text-gray-300">|</span>
+            <button onClick={() => expandAll(false)} className="font-semibold text-gray-500 hover:underline">Collapse all</button>
+          </div>
+        )}
+      </div>
 
       {total === 0 ? (
         <Empty icon="🛡️" title="No volunteers yet" sub="Coaches and admins live here. Add them one at a time, or import a whole list from CSV." action={{ label: "Add your first coach", onClick: addCoach }} />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {showCoaches && coaches.map((c) => (
             <VolunteerCard key={c.id} v={c} type="coach" students={studentsForClass(c.classId)}
               set={setCoach(c)} onDelete={removeCoach(c)}
               assignedTo={coachAssignedTo(c)} otherLabel={coachOtherLabel(c)} toggleStudent={assignToCoach(c)}
-              flash={justAdded === c.id} />
+              flash={justAdded === c.id} expanded={!!openCards[c.id]} onToggle={() => toggleCard(c.id)} />
           ))}
           {showAdmins && admins.map((a) => (
             <VolunteerCard key={a.id} v={a} type="admin" students={studentsForClass(a.classId)}
               set={setAdmin(a)} onDelete={removeAdmin(a)}
               assignedTo={adminAssignedTo(a)} otherLabel={null} toggleStudent={adminToggle(a, setAdmin(a))}
-              flash={justAdded === a.id} />
+              flash={justAdded === a.id} expanded={!!openCards[a.id]} onToggle={() => toggleCard(a.id)} />
           ))}
         </div>
       )}

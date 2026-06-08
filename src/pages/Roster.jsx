@@ -1,17 +1,26 @@
 import { useState } from "react";
-import { Card, Stat, EditableField, Empty } from "../components/ui.jsx";
+import { Card, Stat, TextInput, EditableField, Empty } from "../components/ui.jsx";
 import { COURSES, courseById } from "../domain/courses.js";
 import { smsHref, mailtoHref, fillTemplate, DEFAULT_TEMPLATES } from "../domain/messaging.js";
 import { rosterFor, activeRosterFor, droppedFor, unassignedFor, coachesForCourse, studentsForCoachInCourse } from "../domain/selectors.js";
 import { useIsMobile } from "../hooks/useIsMobile.js";
-import { firstName } from "../domain/models.js";
+import { firstName, makeStudent } from "../domain/models.js";
 
 const FILTERS = ["All", "Active", "Unassigned", "Dropped"];
 
-export default function Roster({ state, upsertStudent, patchStudent, readOnly = false, toast }) {
+export default function Roster({ state, upsertStudent, patchStudent, deleteStudent, roundId = null, readOnly = false, toast }) {
   const isMobile = useIsMobile();
   const [course, setCourse] = useState("HW1");
   const [filter, setFilter] = useState("All");
+  const [newName, setNewName] = useState("");
+  const addStudent = async () => {
+    const nm = newName.trim();
+    const st = makeStudent({ name: nm, roundId });
+    st.progress[course] = "in_progress"; // enroll in the currently-selected class
+    await upsertStudent(st);
+    setNewName("");
+    toast?.(nm ? `Added ${nm} to ${courseById(course)?.name || course}` : `Added a student to ${courseById(course)?.name || course}`);
+  };
 
   const rows = rosterFor(state, course);
   const active = activeRosterFor(state, course);
@@ -51,6 +60,11 @@ export default function Roster({ state, upsertStudent, patchStudent, readOnly = 
   const setIntent = (s, val) =>
     patchStudent(s.id, { intent: { ...(s.intent || {}), [course]: val } });
   const intentLabel = (v) => (v === "in_person" ? "In person" : v === "zoom" ? "Zoom" : "—");
+  const removeStudent = (s) => {
+    if (typeof window !== "undefined" && window.confirm && !window.confirm(`Delete ${s.name || "this student"}? This permanently removes them from every class, the roster, and attendance.`)) return;
+    deleteStudent?.(s.id);
+    toast?.(`Deleted ${s.name || "student"}`, { kind: "danger", action: { label: "Undo", onClick: () => upsertStudent?.(s) } });
+  };
   const autoAssign = async () => {
     const list = unassignedFor(state, course);
     if (!list.length) { toast?.("No unassigned students in this class"); return; }
@@ -81,26 +95,26 @@ export default function Roster({ state, upsertStudent, patchStudent, readOnly = 
       </div>
 
       <Card className="p-3">
-        <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Coaches for {courseName}</div>
+        <div className="flex items-baseline justify-between mb-2">
+          <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Coaches for {courseName} ({classCoaches.length})</div>
+          {unassigned.length > 0 && <span className="text-[11px] font-semibold text-amber-600">{unassigned.length} student{unassigned.length === 1 ? "" : "s"} unassigned</span>}
+        </div>
         {classCoaches.length === 0 ? (
           <p className="text-xs text-gray-400">No coaches set for this class yet. On the Volunteers tab, set a coach's class to {courseName} (or confirm them for it) and they'll show up here.</p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
             {classCoaches.map((c) => {
               const n = studentsForCoachInCourse(state, course, c.id).length;
               return (
-                <span key={c.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-50 border border-gray-200 text-gray-700">
-                  {c.name || "Unnamed coach"}
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ background: n ? "#dc2626" : "#9ca3af" }}>{n}</span>
-                </span>
+                <div key={c.id} className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-gray-50 border border-gray-200">
+                  <span className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: n ? "#dc2626" : "#9ca3af" }}>{n}</span>
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold text-gray-800 truncate">{c.name || "Unnamed coach"}</div>
+                    <div className="text-[10px] text-gray-400 truncate">{c.tableNumber ? `Table ${c.tableNumber}` : "no table"}{c.phone ? ` · ${c.phone}` : ""}</div>
+                  </div>
+                </div>
               );
             })}
-            {unassigned.length > 0 && (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-50 border border-amber-200 text-amber-700">
-                Unassigned
-                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold text-white bg-amber-500">{unassigned.length}</span>
-              </span>
-            )}
           </div>
         )}
       </Card>
@@ -132,6 +146,15 @@ export default function Roster({ state, upsertStudent, patchStudent, readOnly = 
           </button>
         ))}
       </div>
+
+      {!readOnly && (
+        <div className="flex flex-wrap items-center gap-2">
+          <TextInput value={newName} onChange={setNewName} placeholder={`Add a student to ${courseName}…`} className="w-64"
+            onKeyDown={(e) => { if (e.key === "Enter") addStudent(); }} />
+          <button onClick={addStudent} className="px-4 py-2 rounded-lg bg-gray-900 hover:bg-black text-white text-sm font-semibold">+ Add student</button>
+          <span className="text-xs text-gray-400">enrolls them in {courseName}</span>
+        </div>
+      )}
 
       {!readOnly && unassigned.length > 0 && (
         <div className="flex items-center gap-2">
@@ -190,6 +213,10 @@ export default function Roster({ state, upsertStudent, patchStudent, readOnly = 
                   ) : (
                     <button onClick={() => setDropped(s, true)}
                       className="px-3 py-2 rounded-md text-xs font-semibold text-red-600 border border-red-200">Mark dropped</button>
+                  )}
+                  {deleteStudent && (
+                    <button onClick={() => removeStudent(s)}
+                      className="px-3 py-2 rounded-md text-xs font-semibold text-white bg-red-600 hover:bg-red-700">🗑 Delete</button>
                   )}
                 </div>
               )}
@@ -263,6 +290,10 @@ export default function Roster({ state, upsertStudent, patchStudent, readOnly = 
                     ) : (!readOnly &&
                       <button onClick={() => setDropped(s, true)}
                         className="px-2.5 py-1 rounded-md text-xs font-semibold text-red-600 hover:bg-red-50 border border-red-200">Mark dropped</button>
+                    )}
+                    {!readOnly && deleteStudent && (
+                      <button onClick={() => removeStudent(s)} title="Delete student"
+                        className="ml-1 px-2.5 py-1 rounded-md text-xs font-semibold text-white bg-red-600 hover:bg-red-700">🗑</button>
                     )}
                   </td>
                 </tr>
