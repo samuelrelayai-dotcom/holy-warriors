@@ -131,6 +131,14 @@ describe("STUDENT JOURNEY", () => {
 });
 
 describe("ATTENDANCE", () => {
+  it("add a student manually from attendance", async () => {
+    renderApp(); await signIn(); tab("Attendance");
+    const input = await screen.findByPlaceholderText(/Add a student to/i);
+    fireEvent.change(input, { target: { value: "Atten Andy" } });
+    fireEvent.click(screen.getByRole("button", { name: /\+ Add student/i }));
+    expect(await screen.findByText("Atten Andy")).toBeInTheDocument();
+  });
+
   it("enrolled student shows; cycle attendance; confirm; present count; course tabs", async () => {
     renderApp(); await signIn();
     // create + enroll a student in HW1
