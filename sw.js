@@ -1,5 +1,5 @@
 // Holy Warriors service worker — installable PWA + offline app shell.
-const CACHE = "hw-shell-v12";
+const CACHE = "hw-shell-v13";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
